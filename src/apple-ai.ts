@@ -1,51 +1,7 @@
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-import { createRequire } from "module";
+import { getNativeModule } from "./native-loader";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-
-// Resolve the compiled native addon. Try multiple paths to work with both bundled and unbundled scenarios
-let native: any;
-
-// Helper function to safely try loading from different possible locations
-function tryLoadNative() {
-  const possiblePaths = [
-    // When bundled, these paths are relative to the script execution location
-    "./build/apple_ai_napi.node",
-    "./native/target/release/apple_ai_napi.node",
-    "./native/target/release/libapple_ai_napi.dylib",
-    // When not bundled, these paths are relative to this source file
-    join(__dirname, "../build/apple_ai_napi.node"),
-    join(__dirname, "../native/target/release/apple_ai_napi.node"),
-    join(__dirname, "../native/target/release/libapple_ai_napi.dylib"),
-  ];
-
-  let lastError: Error | null = null;
-
-  for (const path of possiblePaths) {
-    try {
-      return require(path);
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      // Continue to next path
-    }
-  }
-
-  throw new Error(
-    `Could not load apple_ai_napi native module from any expected location. Last error: ${lastError?.message}`
-  );
-}
-
-try {
-  native = tryLoadNative();
-} catch (error) {
-  throw new Error(
-    `Failed to initialize Apple AI native module: ${
-      error instanceof Error ? error.message : String(error)
-    }`
-  );
-}
+// Initialize native module using robust loader
+const native = getNativeModule();
 
 // Types for our Apple AI library
 export interface ChatMessage {
@@ -95,7 +51,7 @@ export interface ChatCompletionResponse {
 /**
  * Apple AI library for accessing on-device foundation models
  */
-export class AppleAI {
+export class AppleAISDK {
   /** Check availability of Apple Intelligence */
   async checkAvailability(): Promise<ModelAvailability> {
     return native.checkAvailability();
@@ -423,4 +379,4 @@ export class AppleAI {
   }
 }
 
-export const appleAI = new AppleAI();
+export const appleAISDK = new AppleAISDK();

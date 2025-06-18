@@ -33,15 +33,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
-# Build artifacts
-build/
-
-# Rust cargo build output
+# Rust cargo build output (entire folder) – DO NOT COMMIT
 native/target/
 
 # Cursor IDE metadata
 .cursor/
 
-# Binary artifacts
-*.dylib
-*.node
+# NOTE: build/ directory and native binaries are NOT ignored
+# because they must be committed for distribution since CI 
+# cannot build on macOS 26+ beta

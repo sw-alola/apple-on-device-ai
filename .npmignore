@@ -1,0 +1,49 @@
+# Source files (only dist is published)
+src/
+examples/
+native/src/
+native/target/debug/
+native/target/tmp/
+native/Cargo.toml
+native/Cargo.lock
+native/build.rs
+
+# Development files
+*.log
+*.tsbuildinfo
+.env*
+.vscode/
+.idea/
+
+# Build artifacts (except native binaries which we need)
+tsconfig.json
+tsconfig.build.json
+build.sh
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+coverage/
+
+# CI/CD
+.github/
+.gitignore
+
+# Documentation (except README)
+docs/
+*.md
+!README.md
+
+# Lock files (but keep package.json)
+bun.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Make sure we DON'T exclude essential native binaries
+!build/*.node
+!build/*.dylib
+!build/*.json
+!build/*.swiftmodule
+!build/*.swiftdoc
+!build/*.swiftsourceinfo 

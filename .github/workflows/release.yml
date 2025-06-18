@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate pre-built binaries exist
+        run: bun run validate-binaries
+
+      - name: Build TypeScript
+        run: bun run build:ts
+
+      - name: Setup Node.js for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## @meridius-labs/apple-on-device-ai ${{ github.ref_name }}
+
+            ### Changes
+            - See [CHANGELOG.md](CHANGELOG.md) for details
+
+            ### Installation
+            ```bash
+            npm install @meridius-labs/apple-on-device-ai
+            ```
+
+            ### Requirements
+            - macOS 26+ with Apple Intelligence
+            - Apple Silicon (M1/M2/M3/M4)
+          draft: false
+          prerelease: false
