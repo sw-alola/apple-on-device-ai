@@ -6,6 +6,7 @@ import type {
 } from "@ai-sdk/provider";
 import type { ChatMessage } from "./apple-ai";
 import { appleAISDK as appleAIInstance } from "./apple-ai";
+import { appleAISDK } from "./apple-ai";
 import type { AppleAIModelId, AppleAISettings } from "./apple-ai-provider";
 
 export interface AppleAIChatConfig {
@@ -67,45 +68,23 @@ export class AppleAIChatLanguageModel implements LanguageModelV1 {
       },
     };
 
-    // Handle object generation based on responseFormat
+    // Native structured generation path
     if (responseFormat?.type === "json" && responseFormat?.schema) {
-      // For object generation, we'll use regular generation and parse the JSON
-      let content = await appleAIInstance.generateResponseWithHistory(
-        [
-          ...messages,
-          {
-            role: "system",
-            content: `You must respond with valid JSON that matches this schema: ${JSON.stringify(
-              responseFormat.schema
-            )}. Your response must start with \`\`\`json and end with \`\`\`. Do not include any other text or comments, just the raw JSON in the correct format.`,
-          },
-        ],
-        {
-          temperature: this.settings.temperature,
-          maxTokens: this.settings.maxTokens,
-        }
-      );
+      const schemaJson = JSON.stringify(responseFormat.schema);
+      const promptStr = messages
+        .map((m) => `${m.role}: ${m.content}`)
+        .join("\n");
 
-      /**
-       * extract the content between the markdown code block
-       */
-      const trimStart = "```json";
-      const trimEnd = "```";
-      content = content.substring(
-        content.indexOf(trimStart) + trimStart.length,
-        content.indexOf(trimEnd)
-      );
-
-      let parsedObject;
-      try {
-        parsedObject = JSON.parse(content);
-      } catch (error) {
-        throw new Error(`Invalid JSON response: ${content}`);
-      }
+      const structured = await appleAIInstance.generateStructured({
+        prompt: promptStr,
+        schemaJson,
+        temperature: this.settings.temperature,
+        maxTokens: this.settings.maxTokens,
+      });
 
       return {
-        text: content,
-        object: parsedObject,
+        text: structured.text,
+        object: structured.object,
         usage: {
           promptTokens: 0,
           completionTokens: 0,

@@ -1,4 +1,6 @@
 import { getNativeModule } from "./native-loader";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 // Initialize native module using robust loader
 const native = getNativeModule();
@@ -377,6 +379,55 @@ export class AppleAISDK {
       },
     };
   }
+
+  /** Generate a structured object based on a Zod/JSON schema */
+  async generateStructured<T = any>(params: {
+    prompt: string;
+    schemaJson: string; // JSON Schema as string
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{ text: string; object: T }> {
+    const { prompt, schemaJson, temperature, maxTokens } = params;
+    const raw = await native.generateResponseStructured(
+      prompt,
+      schemaJson,
+      temperature ?? undefined,
+      maxTokens ?? undefined
+    );
+
+    if (!raw) {
+      throw new Error(
+        "apple_ai_generate_response_structured symbol not found in native module"
+      );
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error(`Invalid JSON returned from native: ${raw}`);
+    }
+
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new Error(`Unexpected response shape: ${raw}`);
+    }
+
+    return parsed as { text: string; object: T };
+  }
 }
 
 export const appleAISDK = new AppleAISDK();
+
+export async function generateStructuredFromZod<T = any>(params: {
+  prompt: string;
+  schema: z.ZodType<T>;
+  temperature?: number;
+  maxTokens?: number;
+}): Promise<{ text: string; object: T }> {
+  const { schema, ...rest } = params;
+  const jsonSchemaObj = zodToJsonSchema(schema, "Root");
+  return appleAISDK.generateStructured({
+    ...rest,
+    schemaJson: JSON.stringify(jsonSchemaObj),
+  });
+}

@@ -36,6 +36,13 @@ extern "C" {
         max_tokens: c_int,
         on_chunk: extern "C" fn(*const c_char),
     );
+
+    fn apple_ai_generate_response_structured(
+        prompt: *const c_char,
+        schema_json: *const c_char,
+        temperature: c_double,
+        max_tokens: c_int,
+    ) -> *mut c_char;
 }
 
 // --------------------------------------------------
@@ -293,4 +300,60 @@ pub fn generate_response_stream(
         );
     }
     Ok(())
+}
+
+// ---------------- Structured generation task ----------------
+
+pub struct GenerateStructuredTask {
+    pub prompt: String,
+    pub schema_json: String,
+    pub temperature: f64,
+    pub max_tokens: i32,
+}
+
+impl napi::Task for GenerateStructuredTask {
+    type Output = String;
+    type JsValue = JsString;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        ensure_initialized();
+        let c_prompt = CString::new(self.prompt.clone())
+            .map_err(|_| napi::Error::from_reason("Prompt contained null byte".to_string()))?;
+        let c_schema = CString::new(self.schema_json.clone())
+            .map_err(|_| napi::Error::from_reason("Schema contained null byte".to_string()))?;
+        unsafe {
+            let result_ptr = apple_ai_generate_response_structured(
+                c_prompt.as_ptr(),
+                c_schema.as_ptr(),
+                self.temperature as c_double,
+                self.max_tokens as c_int,
+            );
+            if result_ptr.is_null() {
+                return Err(napi::Error::from_reason(
+                    "Generation returned null".to_string(),
+                ));
+            }
+            Ok(take_c_string(result_ptr))
+        }
+    }
+
+    fn resolve(&mut self, env: Env, output: Self::Output) -> napi::Result<Self::JsValue> {
+        env.create_string(&output)
+    }
+}
+
+#[napi]
+pub fn generate_response_structured(
+    prompt: String,
+    schema_json: String,
+    #[napi(ts_arg_type = "number | undefined")] temperature: Option<f64>,
+    #[napi(ts_arg_type = "number | undefined")] max_tokens: Option<i32>,
+) -> napi::Result<AsyncTask<GenerateStructuredTask>> {
+    let task = GenerateStructuredTask {
+        prompt,
+        schema_json,
+        temperature: temperature.unwrap_or(0.0),
+        max_tokens: max_tokens.unwrap_or(0),
+    };
+    Ok(AsyncTask::new(task))
 }

@@ -5,102 +5,70 @@
  * with the Vercel AI SDK and Zod schemas.
  */
 
-import { generateObject } from "ai";
 import { z } from "zod";
-import { appleAI as appleAIProvider } from "../src/apple-ai-provider";
+import { generateStructuredFromZod } from "../src/apple-ai";
 
 // Define schemas for structured data
 const recipeSchema = z.object({
-  name: z.string().describe("Name of the recipe"),
-  ingredients: z
-    .array(
-      z.object({
-        name: z.string(),
-        amount: z.string(),
-        unit: z.string().optional(),
-      })
-    )
-    .describe("List of ingredients with amounts"),
-  instructions: z
-    .array(z.string())
-    .describe("Step-by-step cooking instructions"),
-  cookingTime: z.number().describe("Total cooking time in minutes"),
-  servings: z.number().describe("Number of servings"),
+  name: z.string(),
+  ingredients: z.array(
+    z.object({
+      name: z.string(),
+      amount: z.string(),
+      unit: z.string().optional(),
+    })
+  ),
+  instructions: z.array(z.string()),
+  cookingTime: z.number(),
+  servings: z.number(),
 });
 
 const profileSchema = z.object({
-  name: z.string().describe("Person's full name"),
-  age: z.number().describe("Person's age"),
-  occupation: z.string().describe("Person's job or profession"),
-  hobbies: z.array(z.string()).describe("List of hobbies and interests"),
-  location: z
-    .object({
-      city: z.string(),
-      country: z.string(),
-    })
-    .describe("Current location"),
-  bio: z.string().describe("Short biographical description"),
+  name: z.string(),
+  age: z.number(),
+  occupation: z.string(),
+  hobbies: z.array(z.string()),
+  location: z.object({
+    city: z.string(),
+    country: z.string(),
+  }),
+  bio: z.string(),
 });
 
 async function objectGenerationExample() {
-  console.log("🧩 Object Generation with AI SDK");
-  console.log("=================================");
+  console.log("🧩 Structured Object Generation");
+  console.log("===============================");
 
   try {
     console.log("\n1. Generating a recipe:");
-    const { object: recipe } = await generateObject({
-      model: appleAIProvider("apple-on-device"),
-      schema: recipeSchema,
+    const recipeRes = await generateStructuredFromZod({
       prompt: "Generate a recipe for a healthy breakfast smoothie.",
+      schema: recipeSchema,
       temperature: 0.7,
     });
+    const recipe = recipeRes.object;
 
-    console.log("Generated Recipe:");
-    console.log("Name:", recipe.name);
-    console.log("Cooking Time:", recipe.cookingTime, "minutes");
-    console.log("Servings:", recipe.servings);
-    console.log("\nIngredients:");
-    recipe.ingredients.forEach((ingredient, i) => {
-      console.log(
-        `  ${i + 1}. ${ingredient.amount}${
-          ingredient.unit ? " " + ingredient.unit : ""
-        } ${ingredient.name}`
-      );
-    });
-    console.log("\nInstructions:");
-    recipe.instructions.forEach((step, i) => {
-      console.log(`  ${i + 1}. ${step}`);
-    });
+    console.log("Recipe:", recipe);
 
     console.log("\n2. Generating a character profile:");
-    const { object: profile } = await generateObject({
-      model: appleAIProvider("apple-on-device"),
-      schema: profileSchema,
+    const profileRes = await generateStructuredFromZod({
       prompt:
         "Create a character profile for a tech entrepreneur from San Francisco.",
+      schema: profileSchema,
       temperature: 0.8,
     });
+    const profile = profileRes.object;
 
-    console.log("\nGenerated Profile:");
-    console.log("Name:", profile.name);
-    console.log("Age:", profile.age);
-    console.log("Occupation:", profile.occupation);
-    console.log(
-      "Location:",
-      `${profile.location.city}, ${profile.location.country}`
-    );
-    console.log("Hobbies:", profile.hobbies.join(", "));
-    console.log("Bio:", profile.bio);
+    console.log("Profile:", profile);
 
-    console.log("\n✅ Object generation examples completed!");
+    console.log("\n✅ Structured object generation completed!");
   } catch (error) {
     console.error("❌ Error:", error);
   }
 }
 
-// Run the example if this file is executed directly
-if (import.meta.main) {
-  objectGenerationExample().catch(console.error);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  objectGenerationExample();
 }
 
 export { objectGenerationExample };
