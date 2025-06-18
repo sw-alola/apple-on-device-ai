@@ -28,6 +28,8 @@ swiftc \
   -emit-library -emit-module -module-name AppleOnDeviceAI \
   -framework Foundation -framework FoundationModels \
   -target arm64-apple-macos26.0 \
+  -Xlinker -install_name -Xlinker @rpath/libappleai.dylib \
+  -Xlinker -rpath -Xlinker @loader_path \
   src/apple-ai.swift \
   -o build/libappleai.dylib
 
