@@ -25,17 +25,17 @@ const { appleAI, createAppleAI } = require("@meridius-labs/apple-on-device-ai");
 ### Simple Text Generation
 
 ```typescript
-import { appleAI } from "@meridius-labs/apple-on-device-ai";
+import { appleAISDK } from "@meridius-labs/apple-on-device-ai";
 
 // Check if Apple Intelligence is available
-const availability = await appleAI.checkAvailability();
+const availability = await appleAISDK.checkAvailability();
 if (!availability.available) {
   console.error("Apple Intelligence not available:", availability.reason);
   process.exit(1);
 }
 
 // Generate text
-const response = await appleAI.generateResponse(
+const response = await appleAISDK.generateResponse(
   "Write a haiku about TypeScript"
 );
 console.log(response);
