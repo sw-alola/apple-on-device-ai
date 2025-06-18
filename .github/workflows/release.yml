@@ -1,63 +1,126 @@
-name: Release
+name: Version Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Semver bump type"
+        required: true
+        default: "patch"
+        type: choice
+        options: [patch, minor, major, prerelease]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: macos-latest
+    if: ${{ !contains(github.event.head_commit.message, 'skip ci') }}
+    permissions:
+      contents: write # create commits / tags
+      id-token: write # provenance for npm publish
+      packages: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
+      - name: Setup Node.js (for npm publish)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Validate pre-built binaries exist
+      # Ensure required pre-built binaries are present
+      - name: Validate native binaries
         run: bun run validate-binaries
 
+      # Build TypeScript bundle (no native build on CI)
       - name: Build TypeScript
         run: bun run build:ts
 
-      - name: Setup Node.js for npm
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
+      # ---------------- Versioning ----------------
+      - name: Determine version bump
+        id: determine
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "bump=${{ github.event.inputs.release-type }}" >> $GITHUB_OUTPUT
+          else
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if echo "$COMMIT_MSG" | grep -qE "BREAKING CHANGE|!:" ; then
+              echo "bump=major" >> $GITHUB_OUTPUT
+            elif echo "$COMMIT_MSG" | grep -qE "^feat" ; then
+              echo "bump=minor" >> $GITHUB_OUTPUT
+            else
+              echo "bump=patch" >> $GITHUB_OUTPUT
+            fi
+          fi
 
+      - name: Bump version (package.json)
+        id: bump
+        run: |
+          OLD=$(node -p "require('./package.json').version")
+          bun run npm version ${{ steps.determine.outputs.bump }} --no-git-tag-version --allow-same-version
+          NEW=$(node -p "require('./package.json').version")
+          echo "old=$OLD" >> $GITHUB_OUTPUT
+          echo "new=$NEW" >> $GITHUB_OUTPUT
+          echo "tag=v$NEW" >> $GITHUB_OUTPUT
+
+      # ---------------- Changelog ----------------
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION=${{ steps.bump.outputs.new }}
+          DATE=$(date +%Y-%m-%d)
+          if [[ ! -f CHANGELOG.md ]]; then
+            echo "# Changelog" > CHANGELOG.md
+            echo >> CHANGELOG.md
+          fi
+          TMP=$(mktemp)
+          echo "## [$VERSION] - $DATE" >> $TMP
+          echo >> $TMP
+          echo "### Added" >> $TMP
+          echo "- Release $VERSION" >> $TMP
+          echo >> $TMP
+          cat CHANGELOG.md >> $TMP
+          mv $TMP CHANGELOG.md
+
+      # ---------------- Commit & Tag ----------------
+      - name: Commit version & changelog
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): ${{ steps.bump.outputs.new }}"
+          git tag ${{ steps.bump.outputs.tag }}
+          git push --follow-tags
+
+      # ---------------- Publish ----------------
       - name: Publish to npm
-        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
+      # ---------------- GitHub Release ----------------
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.bump.outputs.tag }}
+          name: ${{ steps.bump.outputs.tag }}
           body: |
-            ## @meridius-labs/apple-on-device-ai ${{ github.ref_name }}
-
-            ### Changes
-            - See [CHANGELOG.md](CHANGELOG.md) for details
-
-            ### Installation
-            ```bash
-            npm install @meridius-labs/apple-on-device-ai
-            ```
-
-            ### Requirements
-            - macOS 26+ with Apple Intelligence
-            - Apple Silicon (M1/M2/M3/M4)
-          draft: false
-          prerelease: false
+            ## Changes in ${{ steps.bump.outputs.tag }}
+            - Version bump from ${{ steps.bump.outputs.old }} to ${{ steps.bump.outputs.new }}
+            - See CHANGELOG.md for details
