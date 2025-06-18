@@ -1,4 +1,4 @@
-# [Unofficial] Apple Foundation Models binding for NodeJS
+# [Unofficial] Apple Foundation Models bindings for NodeJS
 
 ## 🔥🔥🔥 Supports [Vercel AI SDK](https://ai-sdk.dev/)
 
